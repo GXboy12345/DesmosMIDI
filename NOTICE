@@ -1,0 +1,28 @@
+DesmosMIDI
+Copyright 2026 Garret Morberg-Nguyen
+
+This product includes software developed under the Apache License, Version 2.0.
+See LICENSE for the full license text.
+
+Third-party components
+----------------------
+- Mido (MIT) — Standard MIDI File parsing
+- Jinja2, Click, Rich, Textual — see respective PyPI package licenses
+- Desmos Graphing Calculator API v1.13 — loaded from www.desmos.com in generated player.html
+
+Desmos API disclaimer
+---------------------
+DesmosMIDI is not affiliated with, endorsed by, or sponsored by Desmos, Inc.
+
+Generated player.html embeds the Desmos API (JavaScript) using a developer API key
+from https://www.desmos.com/my-api . That key is visible in the browser and in exported
+HTML; treat it as a client-side credential, not a server secret. Use and redistribution
+of exports must comply with Desmos terms of service and API policies in effect when you
+publish or share a build.
+
+Desmos calculator graphs produced by this tool (tone(), Actions, ticker) are user
+content. Desmos trademark and product names belong to Desmos, Inc.
+
+Hosted playback on desmos.com (paste from expressions.md, manual share links) does not
+use DesmosMIDI's HTML player; the same API and account policies apply when you use
+Desmos products directly.

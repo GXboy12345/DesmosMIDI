@@ -32,6 +32,8 @@ The key is passed in the browser script URL — **not a server secret**. CLI rea
 
 Do not commit generated HTML with a production key if the repo is public; regenerate locally or inject at deploy time.
 
+Redistribution: see root [NOTICE](../NOTICE) for the Desmos API disclaimer (not affiliated; client-visible key; comply with Desmos terms).
+
 ## Artifacts
 
 | File | Role |

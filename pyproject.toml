@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "MIDI to Desmos tone() graphs"
 readme = "README.md"
 license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.11"
 dependencies = [
   "mido>=1.3.2",
