@@ -23,17 +23,24 @@ Then: `desmosmidi setup` (Desmos API key in `.env` in the working directory).
 
 ## PyPI trusted publishing (one-time)
 
-On [pypi.org](https://pypi.org) (create `desmosmidi` project if needed):
+On [pypi.org](https://pypi.org):
 
-1. **Publishing** → add a trusted publisher:
-   - Owner: your GitHub user or org
-   - Repository: `GXboy12345/DesmosMIDI`
-   - Workflow: `release.yml`
-   - Environment: `pypi` (matches the workflow `environment: pypi`)
+1. Register the project **`desmosmidi`** (first upload claims the name).
+2. **Publishing** → **Add a new trusted publisher** → GitHub:
+   - PyPI Project Name: `desmosmidi`
+   - Owner: `GXboy12345`
+   - Repository name: `DesmosMIDI`
+   - Workflow name: `release.yml`
+   - Environment name: `pypi`
+3. GitHub repo **Settings → Environments**: environment **`pypi`** is created automatically on first release run; no secrets needed for OIDC.
 
-2. In the GitHub repo: **Settings → Environments** → create **`pypi`** (no secrets required for trusted publishing).
+Re-run the failed **pypi** job on the release workflow (or tag `v0.1.1`) after the publisher exists.
 
-If PyPI publish fails on first tag, the GitHub Release assets (wheel + sdist) are still attached; users can `pip install` the wheel from the release page.
+Until then, users install from the [GitHub Release wheel](https://github.com/GXboy12345/DesmosMIDI/releases/tag/v0.1.0):
+
+```bash
+pip install https://github.com/GXboy12345/DesmosMIDI/releases/download/v0.1.0/desmosmidi-0.1.0-py3-none-any.whl
+```
 
 ## Version policy
 

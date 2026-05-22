@@ -2,8 +2,6 @@
 
 Convert Standard MIDI Files into a **prefilled Desmos graph** that plays **piano** music via **`tone()`** synthesis—unbounded polyphony, sustain pedal, decay on gain, beat-proportional timeline, optional keyroll/amplitude viz.
 
-V1 is **not** [MIDI2Desmos](https://github.com/AlexApps99/MIDI2Desmos)-style Audio Trace; it uses documented `tone(frequency, gain)` with a global beat variable `T`.
-
 ## Install
 
 **PyPI:** [desmosmidi 0.1.0](https://pypi.org/project/desmosmidi/)
