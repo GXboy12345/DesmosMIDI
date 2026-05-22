@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{{ title }}</title>
+  <script>
+    (function () {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      const bus = { gain: 1, ctx: null, master: null };
+      window.__dmidiBus = bus;
+      const Native = AC;
+      function Wrapped(...args) {
+        const ctx = new Native(...args);
+        bus.ctx = ctx;
+        const realDest = ctx.destination;
+        const master = ctx.createGain();
+        master.gain.value = bus.gain;
+        master.connect(realDest);
+        try {
+          Object.defineProperty(ctx, "destination", {
+            get: function () { return master; },
+            configurable: true,
+          });
+        } catch (e) {
+          bus.master = null;
+        }
+        bus.master = master;
+        return ctx;
+      }
+      Wrapped.prototype = Native.prototype;
+      window.AudioContext = Wrapped;
+      if (window.webkitAudioContext) window.webkitAudioContext = Wrapped;
+      bus.setGain = function (v) {
+        bus.gain = v;
+        if (bus.master) bus.master.gain.value = v;
+      };
+      bus.resume = function () {
+        if (bus.ctx && bus.ctx.state === "suspended") return bus.ctx.resume();
+        return Promise.resolve();
+      };
+    })();
+  </script>
+  <script src="https://www.desmos.com/api/v1.13/calculator.js?apiKey={{ api_key }}"></script>
+  <style>
+    html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; }
+    #bar { min-height: 48px; display: flex; gap: 8px; align-items: center; padding: 6px 12px; border-bottom: 1px solid #ddd; flex-wrap: wrap; }
+    #calculator { width: 100%; height: calc(100% - 49px); min-height: 200px; }
+    button { font: inherit; padding: 6px 10px; }
+    button.view-on { background: #1a3a5c; color: #fff; border-color: #1a3a5c; }
+    #readout { font-variant-numeric: tabular-nums; }
+    #status { margin-left: auto; font-size: 12px; color: #666; }
+    .ctl { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+    .ctl input[type="range"] { width: 88px; }
+    .view-grp { display: flex; gap: 4px; border-left: 1px solid #ccc; padding-left: 8px; margin-left: 4px; }
+  </style>
+</head>
+<body>
+  <div id="bar">
+    <button id="play">Play</button>
+    <button id="stop">Stop</button>
+    <button id="expr-panel" type="button" title="Toggle Desmos expression list">Hide expr</button>
+    <span id="readout">T=0.000 beats</span>
+    <div class="view-grp" id="view-grp" role="group" aria-label="Graph view">
+      <button type="button" class="view-btn view-on" data-view="keyroll">Keyroll</button>
+      <button type="button" class="view-btn" data-view="pcm">Amplitude</button>
+    </div>
+    <label class="ctl" for="output">Output <input type="range" id="output" min="0" max="400" value="100" step="5" /><span id="output-val">100%</span></label>
+    <label class="ctl" for="bass">Bass <input type="range" id="bass" min="25" max="300" value="{{ default_bass_slider }}" step="5" /><span id="bass-val">{{ "%.2f"|format(default_bass_mult) }}×</span></label>
+    <label class="ctl" for="decay">Decay <input type="range" id="decay" min="1" max="5" value="{{ default_decay_mult }}" step="0.05" /><span id="decay-val">{{ "%.2f"|format(default_decay_mult) }}×</span></label>
+    <label class="ctl" id="no-render-wrap" for="no-render" title="Hide keyroll, playhead, and amplitude layers (Desmos UI stays)">No render <input type="checkbox" id="no-render" /></label>
+    <span id="status">loading…</span>
+  </div>
+  <div id="calculator"></div>
+  <script type="application/json" id="desmosmidi-meta">{{ meta_json | safe }}</script>
+  <script>
+    const meta = JSON.parse(document.getElementById("desmosmidi-meta").textContent);
+    const audioOnly = !!meta.audio_only;
+    const tempoMap = meta.tempo_map || [{ beat: 0, bpm: 120 }];
+    const durationBeats = {{ duration_beats }};
+
+    if (audioOnly) {
+      document.getElementById("view-grp").style.display = "none";
+      document.getElementById("no-render-wrap").style.display = "none";
+    }
+
+    const outputEl = document.getElementById("output");
+    const outputVal = document.getElementById("output-val");
+    const bassEl = document.getElementById("bass");
+    const bassVal = document.getElementById("bass-val");
+    const decayEl = document.getElementById("decay");
+    const decayVal = document.getElementById("decay-val");
+
+    function applyOutput() {
+      const pct = Number(outputEl.value);
+      outputVal.textContent = pct + "%";
+      if (window.__dmidiBus) window.__dmidiBus.setGain(pct / 100);
+    }
+    outputEl.addEventListener("input", applyOutput);
+
+    let bassMult = {{ default_bass_mult }};
+    let decayMult = {{ default_decay_mult }};
+    let pitchMin = (meta.viz && meta.viz.pitch_min) || 21;
+    let pitchMax = (meta.viz && meta.viz.pitch_max) || 108;
+    let pcmYMax = (meta.viz && meta.viz.pcm_y_max) || 0.08;
+    let viewMode = "keyroll";
+    let exprOpen = true;
+    let loadDone = false;
+    let noRender = false;
+    let vizSuppressed = false;
+    let lastTLatex = "";
+    const VIZ_IDS = ["keyroll", "viz_playhead", "pcm_sum"];
+    const noRenderEl = document.getElementById("no-render");
+
+    function applyBass() {
+      bassMult = Number(bassEl.value) / 100;
+      bassVal.textContent = bassMult.toFixed(2) + "×";
+      calc.setExpression({ id: "B", latex: "B=" + bassMult.toFixed(3) });
+    }
+    bassEl.addEventListener("input", applyBass);
+
+    function applyDecay() {
+      decayMult = Number(decayEl.value);
+      decayVal.textContent = decayMult.toFixed(2) + "×";
+      calc.setExpression({ id: "D", latex: "D=" + decayMult.toFixed(3) });
+    }
+    decayEl.addEventListener("input", applyDecay);
+
+    const elt = document.getElementById("calculator");
+    const calc = Desmos.GraphingCalculator(elt, {
+      audio: true,
+      tone: true,
+      muted: true,
+      actions: true,
+      expressions: true,
+      expressionsCollapsed: false,
+      settingsMenu: true,
+      zoomButtons: true,
+      showGrid: false,
+      showXAxis: false,
+      showYAxis: false,
+      lockViewport: false
+    });
+
+    function setExprPanelOpen(open) {
+      exprOpen = !!open;
+      calc.updateSettings({ expressionsCollapsed: !exprOpen });
+      document.getElementById("expr-panel").textContent = exprOpen ? "Hide expr" : "Show expr";
+    }
+
+    function setLayer(id, hidden) {
+      try {
+        calc.setExpression({ id: id, hidden: !!hidden });
+      } catch (e) { /* */ }
+    }
+
+    function suppressViz() {
+      for (let i = 0; i < VIZ_IDS.length; i++) setLayer(VIZ_IDS[i], true);
+      vizSuppressed = true;
+    }
+
+    function showVizForView(v) {
+      vizSuppressed = false;
+      const roll = v === 1;
+      const pcm = v === 2;
+      setLayer("keyroll", !roll);
+      setLayer("viz_playhead", !roll);
+      setLayer("pcm_sum", !pcm);
+    }
+
+    function syncDesmosVizLayers(v) {
+      if (noRender) {
+        suppressViz();
+        return;
+      }
+      showVizForView(v);
+    }
+
+    function applyRenderPolicy() {
+      if (noRender) {
+        suppressViz();
+        return;
+      }
+      vizSuppressed = false;
+      const v = viewMode === "pcm" ? 2 : 1;
+      showVizForView(v);
+      syncBounds(viewMode);
+    }
+
+    noRenderEl.addEventListener("change", function () {
+      noRender = noRenderEl.checked;
+      applyRenderPolicy();
+    });
+
+    function syncBounds(mode) {
+      const pr = { lo: pitchMin - 2, hi: pitchMax + 2 };
+      if (mode === "keyroll") {
+        calc.setMathBounds({
+          left: 0,
+          right: durationBeats,
+          bottom: pr.lo,
+          top: pr.hi
+        });
+      } else {
+        calc.setMathBounds({ left: 0, right: 0.12, bottom: -pcmYMax, top: pcmYMax });
+      }
+    }
+
+    function applyView(mode) {
+      viewMode = mode;
+      const v = mode === "pcm" ? 2 : 1;
+      calc.setExpression({ id: "V", latex: "V=" + v });
+      if (noRender) suppressViz();
+      else {
+        syncDesmosVizLayers(v);
+        syncBounds(mode);
+      }
+    }
+
+    let T = 0;
+    let playing = false;
+    let lastMs = 0;
+    let raf = 0;
+
+    function setStatus(msg) {
+      document.getElementById("status").textContent = msg;
+    }
+
+    function nestList(folders, rows) {
+      const groups = {};
+      for (const spec of folders) groups[spec.id] = [];
+      const orphan = [];
+      for (const row of rows) {
+        const fid = row.folderId;
+        if (fid && groups[fid]) groups[fid].push(row);
+        else orphan.push(row);
+      }
+      const list = [];
+      for (const spec of folders) {
+        list.push(Object.assign({}, spec, { collapsed: true }));
+        const kids = groups[spec.id] || [];
+        if (spec.id === "dmidi_clock") {
+          kids.sort(function (a, b) {
+            const order = { T: 0, B: 1, D: 2, V: 3 };
+            return (order[a.id] ?? 9) - (order[b.id] ?? 9);
+          });
+        } else {
+          kids.sort(function (a, b) {
+            return String(a.id).localeCompare(String(b.id));
+          });
+        }
+        list.push.apply(list, kids);
+      }
+      if (orphan.length) list.push.apply(list, orphan);
+      return list;
+    }
+
+    function collapseAllFolders() {
+      const st = calc.getState();
+      const list = st.expressions && st.expressions.list;
+      if (!list) return;
+      for (let i = 0; i < list.length; i++) {
+        if (list[i].type === "folder") list[i].collapsed = true;
+      }
+      calc.setState(st, { allowUndo: false });
+    }
+
+    function injectVizSidecar(ordered, vizRows) {
+      if (!vizRows || !vizRows.length) return ordered;
+      if (ordered.some(function (r) { return r.id === "keyroll"; })) return ordered;
+      const out = [];
+      for (let i = 0; i < ordered.length; i++) {
+        out.push(ordered[i]);
+        if (ordered[i].type === "folder" && ordered[i].id === "dmidi_viz") {
+          out.push.apply(out, vizRows);
+        }
+      }
+      return out;
+    }
+
+    function toSetExpression(row) {
+      if (!row || row.type === "folder") return null;
+      const o = Object.assign({}, row);
+      if (o.slider) {
+        o.sliderBounds = {
+          min: String(o.slider.min),
+          max: String(o.slider.max),
+          step: o.slider.step != null ? String(o.slider.step) : ""
+        };
+        delete o.slider;
+      }
+      return o;
+    }
+
+    function rebuildFolderState(ordered) {
+      const st = calc.getState();
+      const live = {};
+      const cur = st.expressions && st.expressions.list;
+      if (!cur || !cur.length) return null;
+      for (let i = 0; i < cur.length; i++) {
+        if (cur[i].id) live[cur[i].id] = cur[i];
+      }
+      const out = [];
+      for (let i = 0; i < ordered.length; i++) {
+        const want = ordered[i];
+        if (want.type === "folder") {
+          out.push({
+            type: "folder",
+            id: want.id,
+            title: want.title || want.id,
+            collapsed: true
+          });
+          continue;
+        }
+        const row = live[want.id];
+        if (!row) continue;
+        const copy = JSON.parse(JSON.stringify(row));
+        if (want.folderId) copy.folderId = want.folderId;
+        out.push(copy);
+      }
+      return out.length ? out : null;
+    }
+
+    function patchGraphSettings(st) {
+      if (!st.graph) return st;
+      st.graph.showGrid = false;
+      st.graph.showXAxis = false;
+      st.graph.showYAxis = false;
+      st.graph.backgroundColor = "#0d1117";
+      return st;
+    }
+
+    function applyExpressionState(list) {
+      const flat = [];
+      for (let i = 0; i < list.length; i++) {
+        const row = toSetExpression(list[i]);
+        if (row) flat.push(row);
+      }
+      calc.setExpressions(flat);
+      const rebuilt = rebuildFolderState(list);
+      const st = patchGraphSettings(calc.getState());
+      if (rebuilt) {
+        st.expressions.list = rebuilt;
+        try {
+          calc.setState(st, { allowUndo: false });
+          collapseAllFolders();
+          return;
+        } catch (e) { /* folders optional; flat setExpressions list must keep playing */ }
+      }
+      calc.setState(patchGraphSettings(calc.getState()), { allowUndo: false });
+    }
+
+    async function loadExpressions() {
+      let vizRows = [];
+      if (!audioOnly && meta.viz && meta.viz.viz_data) {
+        try {
+          vizRows = await (await fetch(meta.viz.viz_data)).json();
+        } catch (e) { /* */ }
+      }
+
+      let list = null;
+      const exprLoad = meta.expressions_load || (meta.expressions_inline ? "expressions.json" : null);
+      if (exprLoad) {
+        try {
+          list = injectVizSidecar(await (await fetch(exprLoad)).json(), vizRows);
+        } catch (e) { /* */ }
+      }
+
+      if (!list) {
+        let rows = [];
+        const manifest = await (await fetch(meta.load || "expr/manifest.json")).json();
+        const folders = manifest.folders || [];
+        for (const rel of manifest.chunks) {
+          const chunk = await (await fetch(rel)).json();
+          for (let i = 0; i < chunk.length; i++) {
+            if (chunk[i].type !== "folder") rows.push(chunk[i]);
+          }
+        }
+        rows = rows.concat(vizRows);
+        list = nestList(folders, rows);
+      }
+
+      applyExpressionState(list);
+      setExprPanelOpen(true);
+      applyBass();
+      applyDecay();
+      if (!audioOnly) applyView("keyroll");
+      else calc.setMathBounds({ left: 0, right: durationBeats, bottom: -1, top: 1 });
+      setT(0);
+      loadDone = true;
+      const tones = list.filter(function (r) { return r.id && r.id.indexOf("tone_") === 0; }).length;
+      const busOk = window.__dmidiBus && window.__dmidiBus.master;
+      const vn = (meta.viz && meta.viz.note_count) || 0;
+      setStatus(
+        list.length + " expr · " + tones + " tones" +
+        (audioOnly ? " · audio only" : " · " + vn + " notes") +
+        (busOk ? "" : " · output bus off")
+      );
+    }
+
+    function bpmAtBeat(beat) {
+      let bpm = tempoMap[0].bpm;
+      for (const seg of tempoMap) {
+        if (beat >= seg.beat) bpm = seg.bpm;
+        else break;
+      }
+      return bpm;
+    }
+
+    function setT(nextT) {
+      T = Math.max(0, Math.min(durationBeats, nextT));
+      const latex = "T=" + T.toFixed(4);
+      if (latex !== lastTLatex) {
+        calc.setExpression({ id: "T", latex: latex });
+        lastTLatex = latex;
+      }
+      document.getElementById("readout").textContent = "T=" + T.toFixed(3) + " beats";
+    }
+
+    function frame(nowMs) {
+      if (!playing) return;
+      if (noRender && !vizSuppressed) suppressViz();
+      const dt = Math.min(0.1, (nowMs - lastMs) / 1000);
+      lastMs = nowMs;
+      setT(T + dt * (bpmAtBeat(T) / 60));
+      if (T >= durationBeats - 1e-6) {
+        playing = false;
+        cancelAnimationFrame(raf);
+        applyRenderPolicy();
+      }
+      raf = requestAnimationFrame(frame);
+    }
+
+    document.getElementById("play").addEventListener("click", function () {
+      applyOutput();
+      applyBass();
+      applyDecay();
+      const bus = window.__dmidiBus;
+      if (bus && bus.resume) bus.resume();
+      calc.updateSettings({ muted: false });
+      if (!playing) {
+        playing = true;
+        applyRenderPolicy();
+        lastMs = performance.now();
+        raf = requestAnimationFrame(frame);
+      }
+    });
+
+    document.getElementById("stop").addEventListener("click", function () {
+      playing = false;
+      cancelAnimationFrame(raf);
+      calc.updateSettings({ muted: true });
+      lastTLatex = "";
+      setT(0);
+      applyRenderPolicy();
+    });
+
+    document.getElementById("expr-panel").addEventListener("click", function () {
+      setExprPanelOpen(!exprOpen);
+    });
+
+    document.querySelectorAll(".view-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const mode = btn.getAttribute("data-view");
+        document.querySelectorAll(".view-btn").forEach(function (b) {
+          b.classList.toggle("view-on", b === btn);
+        });
+        applyView(mode);
+      });
+    });
+
+    calc.observeEvent("change", function () {
+      if (!loadDone || playing) return;
+      try {
+        const st = calc.getState();
+        const list = st.expressions.list || [];
+        for (let i = 0; i < list.length; i++) {
+          const row = list[i];
+          if (!audioOnly && row.id === "V" && row.latex) {
+            const m = row.latex.match(/V=([12])/);
+            if (m) {
+              const v = Number(m[1]);
+              const mode = v === 2 ? "pcm" : "keyroll";
+              if (mode !== viewMode) {
+                viewMode = mode;
+                document.querySelectorAll(".view-btn").forEach(function (b) {
+                  b.classList.toggle("view-on", b.getAttribute("data-view") === mode);
+                });
+                if (noRender) suppressViz();
+                else {
+                  syncDesmosVizLayers(v);
+                  syncBounds(mode);
+                }
+              }
+            }
+          }
+          if (row.id === "D" && row.latex) {
+            const m = row.latex.match(/D=([0-9.]+)/);
+            if (m) {
+              decayMult = Number(m[1]);
+              decayEl.value = String(decayMult);
+              decayVal.textContent = decayMult.toFixed(2) + "×";
+            }
+          }
+        }
+      } catch (e) { /* */ }
+    });
+
+    applyOutput();
+    loadExpressions().catch(function (err) { setStatus("load failed: " + err); });
+  </script>
+</body>
+</html>

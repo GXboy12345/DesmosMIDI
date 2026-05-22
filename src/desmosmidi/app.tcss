@@ -1,0 +1,51 @@
+Screen {
+    layout: vertical;
+}
+
+#main-container {
+    height: 1fr;
+    padding: 1 2;
+}
+
+.action-bar {
+    dock: top;
+    height: auto;
+    padding: 1 0;
+}
+
+.action-bar Button {
+    margin: 0 1 0 0;
+}
+
+.action-bar Checkbox {
+    margin: 0 0 0 1;
+    width: auto;
+}
+
+#path-row {
+    height: auto;
+    padding: 0 0 1 0;
+}
+
+#mode-label {
+    height: auto;
+    padding: 0 0 1 0;
+}
+
+#midi-path {
+    width: 1fr;
+}
+
+#log-panel {
+    height: 1fr;
+    border: round $primary;
+    padding: 0 1;
+    margin-top: 1;
+}
+
+#status-bar {
+    dock: bottom;
+    height: 1;
+    padding: 0 2;
+    background: $surface;
+}
