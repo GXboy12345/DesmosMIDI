@@ -30,6 +30,11 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "hatch>=1.9"]
 
+[project.urls]
+Homepage = "https://github.com/GXboy12345/DesmosMIDI"
+Repository = "https://github.com/GXboy12345/DesmosMIDI"
+Issues = "https://github.com/GXboy12345/DesmosMIDI/issues"
+
 [project.scripts]
 desmosmidi = "desmosmidi.cli:main"
 

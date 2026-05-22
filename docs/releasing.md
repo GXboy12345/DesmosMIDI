@@ -27,7 +27,7 @@ On [pypi.org](https://pypi.org) (create `desmosmidi` project if needed):
 
 1. **Publishing** → add a trusted publisher:
    - Owner: your GitHub user or org
-   - Repository: `DesmosMIDI` (or actual repo name)
+   - Repository: `GXboy12345/DesmosMIDI`
    - Workflow: `release.yml`
    - Environment: `pypi` (matches the workflow `environment: pypi`)
 

@@ -13,7 +13,7 @@ pip install desmosmidi
 desmosmidi setup
 ```
 
-**From a GitHub Release:** download `desmosmidi-*-py3-none-any.whl` from the repo Releases tab, then `pip install desmosmidi-*.whl`.
+**From a [GitHub Release](https://github.com/GXboy12345/DesmosMIDI/releases):** download `desmosmidi-*-py3-none-any.whl`, then `pip install desmosmidi-*.whl`.
 
 **Development** (this repo):
 
