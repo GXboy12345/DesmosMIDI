@@ -5,7 +5,7 @@ Turn a piano MIDI file into something you open in the browser and play.
 ## 1. One-time setup
 
 ```bash
-pip install desmosmidi
+pip install desmosmidi   # https://pypi.org/project/desmosmidi/
 desmosmidi setup
 ```
 

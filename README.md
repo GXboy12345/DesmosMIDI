@@ -6,14 +6,14 @@ V1 is **not** [MIDI2Desmos](https://github.com/AlexApps99/MIDI2Desmos)-style Aud
 
 ## Install
 
-**PyPI** (after the first release is published):
+**PyPI:** [desmosmidi 0.1.0](https://pypi.org/project/desmosmidi/)
 
 ```bash
 pip install desmosmidi
 desmosmidi setup
 ```
 
-**From a [GitHub Release](https://github.com/GXboy12345/DesmosMIDI/releases):** download `desmosmidi-*-py3-none-any.whl`, then `pip install desmosmidi-*.whl`.
+**GitHub Release wheel** (same build): [v0.1.0 assets](https://github.com/GXboy12345/DesmosMIDI/releases/tag/v0.1.0)
 
 **Development** (this repo):
 
