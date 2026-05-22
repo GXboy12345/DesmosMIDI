@@ -7,7 +7,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from desmosmidi.models import DEFAULT_LIVE_BASS_MULT, DEFAULT_LIVE_DECAY_MULT
 
-_TPL = Path(__file__).resolve().parents[2] / "templates"
+_TPL = Path(__file__).resolve().parent / "templates"
 
 
 def render_player(api_key: str, meta: dict) -> str:

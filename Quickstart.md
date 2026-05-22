@@ -5,12 +5,11 @@ Turn a piano MIDI file into something you open in the browser and play.
 ## 1. One-time setup
 
 ```bash
-cd /path/to/DesmosMIDI
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
+pip install desmosmidi
 desmosmidi setup
 ```
+
+Or from a clone: `pip install -e ".[dev]"` then `desmosmidi setup`.
 
 `setup` saves a free Desmos API key to `.env` — [desmos.com/my-api](https://www.desmos.com/my-api)
 

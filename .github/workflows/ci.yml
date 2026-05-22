@@ -1,0 +1,35 @@
+name: ci
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Editable install and test
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[dev]"
+          pytest -q
+
+      - name: Wheel contains templates
+        run: |
+          pip wheel . -w dist
+          pip install dist/desmosmidi-*.whl
+          python -c "
+          from pathlib import Path
+          from desmosmidi.render_html import _TPL
+          assert (Path(_TPL) / 'player.html.j2').is_file(), _TPL
+          "

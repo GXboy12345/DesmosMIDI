@@ -1,11 +1,24 @@
 [project]
 name = "desmosmidi"
 version = "0.1.0"
-description = "MIDI to Desmos tone() graphs"
+description = "Convert piano MIDI files into Desmos tone() graphs with a local HTML player"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.11"
+authors = [{ name = "Garret Morberg-Nguyen", email = "garretmorbergnguyen@gmail.com" }]
+keywords = ["midi", "desmos", "music", "graphing-calculator", "tone"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Multimedia :: Sound/Audio :: MIDI",
+]
 dependencies = [
   "mido>=1.3.2",
   "jinja2>=3.1",
@@ -15,7 +28,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "hatch>=1.9"]
 
 [project.scripts]
 desmosmidi = "desmosmidi.cli:main"
@@ -29,6 +42,17 @@ packages = ["src/desmosmidi"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "src/desmosmidi/app.tcss" = "desmosmidi/app.tcss"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/LICENSE",
+  "/NOTICE",
+  "/README.md",
+  "/Quickstart.md",
+  "/docs",
+  "/src",
+  "/tests",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

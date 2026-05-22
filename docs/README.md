@@ -12,3 +12,4 @@ Technical reference for the MIDI → Desmos `tone()` pipeline. Start with [Quick
 | [cli.md](cli.md) | Commands, flags, env |
 | [share.md](share.md) | Static host share, API key, desmos.com limits |
 | [report-schema.md](report-schema.md) | `song.report.json`, soft limits |
+| [releasing.md](releasing.md) | PyPI, GitHub Releases, version tags |

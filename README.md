@@ -4,12 +4,31 @@ Convert Standard MIDI Files into a **prefilled Desmos graph** that plays **piano
 
 V1 is **not** [MIDI2Desmos](https://github.com/AlexApps99/MIDI2Desmos)-style Audio Trace; it uses documented `tone(frequency, gain)` with a global beat variable `T`.
 
+## Install
+
+**PyPI** (after the first release is published):
+
+```bash
+pip install desmosmidi
+desmosmidi setup
+```
+
+**From a GitHub Release:** download `desmosmidi-*-py3-none-any.whl` from the repo Releases tab, then `pip install desmosmidi-*.whl`.
+
+**Development** (this repo):
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+Cutting releases: [docs/releasing.md](docs/releasing.md).
+
 ## Quickstart
 
 See **[Quickstart.md](Quickstart.md)** for the full walkthrough.
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"
 desmosmidi setup
 desmosmidi                          # terminal UI
 desmosmidi play path/to/song.mid    # build + open browser
